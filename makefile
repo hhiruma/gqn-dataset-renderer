@@ -1,6 +1,6 @@
 CXX = g++
 INCLUDE = -Irtx/external $(shell pkg-config --cflags glfw3) $(shell python3 -m pybind11 --includes)
-LIBRARIES = -L/usr/local/cuda-9.1/lib64
+LIBRARIES = -L/usr/local/cuda/lib64
 LDFLAGS = $(shell pkg-config --static --libs glfw3) -shared -fopenmp
 CXXFLAGS = -O3 -Wall -Wformat -march=native -std=c++14 -fPIC -fopenmp
 NVCCFLAGS = -ccbin=$(CXX) -Xcompiler "-fPIC"

@@ -198,7 +198,8 @@ def main():
             yaw = gqn.math.yaw(eye, center)
             pitch = gqn.math.pitch(eye, center)
             scene_data.add(image, eye, math.cos(yaw), math.sin(yaw),
-                           math.cos(pitch), math.sin(pitch))
+                           math.cos(pitch), math.sin(pitch),
+                           scene)
 
         dataset.add(scene_data)
 

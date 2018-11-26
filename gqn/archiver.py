@@ -8,12 +8,14 @@ class SceneData:
         self.images = np.zeros(
             (num_views_per_scene, ) + image_size + (3, ), dtype="uint8")
         self.viewpoints = np.zeros((num_views_per_scene, 7), dtype="float32")
+        self.rawScenes = np.zeros((num_views_per_scene, ), dtype="float32")
         self.view_index = 0
         self.num_views_per_scene = num_views_per_scene
         self.image_size = image_size
 
     def add(self, image, camera_position, cos_camera_yaw_rad,
-            sin_camera_yaw_rad, cos_camera_pitch_rad, sin_camera_pitch_rad):
+            sin_camera_yaw_rad, cos_camera_pitch_rad, sin_camera_pitch_rad,
+            rawScene):
         assert isinstance(image, np.ndarray)
         assert isinstance(camera_position, tuple)
         assert isinstance(cos_camera_yaw_rad, float)
@@ -37,6 +39,7 @@ class SceneData:
             cos_camera_pitch_rad,
             sin_camera_pitch_rad,
         )
+        self.rawScenes[self.view_index] = rawScene
         self.view_index += 1
 
 
@@ -55,6 +58,9 @@ class Archiver:
             dtype="uint8")
         self.viewpoints = np.zeros(
             (num_observations_per_file, num_views_per_scene, 7),
+            dtype="float32")
+        self.rawScenes = np.zeros(
+            (num_observations_per_file, num_views_per_scene, ),
             dtype="float32")
         self.current_num_observations = 0
         self.current_pool_index = 0
@@ -81,12 +87,17 @@ class Archiver:
             os.mkdir(os.path.join(directory, "viewpoints"))
         except:
             pass
+        try:
+            os.mkdir(os.path.join(directory, "rawScenes"))
+        except:
+            pass
 
     def add(self, scene: SceneData):
         assert isinstance(scene, SceneData)
 
         self.images[self.current_pool_index] = scene.images
         self.viewpoints[self.current_pool_index] = scene.viewpoints
+        self.rawScenes[self.current_pool_index] = scene.rawScene
 
         self.current_pool_index += 1
         if self.current_pool_index >= self.num_observations_per_file:
@@ -133,3 +144,6 @@ class Archiver:
         np.save(
             os.path.join(self.directory, "viewpoints", filename),
             self.viewpoints)
+
+        filename = "{:03d}.npy".format(self.current_file_number)
+        np.save(os.path.join(self.directory, "rawScenes", filename), self.rawScenes)
