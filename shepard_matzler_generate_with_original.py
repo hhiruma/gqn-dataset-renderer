@@ -12,6 +12,12 @@ from tqdm import tqdm
 import gqn
 import rtx
 
+def rotate_viewpoint(angle_rad):
+    view_radius = 3
+    eye = (view_radius * math.sin(angle_rad),
+           view_radius * math.sin(angle_rad),
+           view_radius * math.cos(angle_rad))
+    return eye
 
 def get_available_axis_and_direction(space, pos):
     ret = []
@@ -168,6 +174,7 @@ def main():
                                       args.total_observations),
         image_size=(args.image_size, args.image_size),
         num_views_per_scene=args.num_views_per_scene,
+        frames_per_rotation=args.frames_per_rotation,
         initial_file_number=args.initial_file_number)
 
     camera = rtx.OrthographicCamera()
@@ -175,9 +182,27 @@ def main():
     for _ in tqdm(range(args.total_observations)):
         scene = build_scene(color_array)
         scene_data = gqn.archiver.SceneData((args.image_size, args.image_size),
-                                            args.num_views_per_scene)
+                                            args.num_views_per_scene,
+                                            args.frames_per_rotation)
 
         view_radius = 3
+        angle_rad = 0
+
+        for _ in range(args.frames_per_rotation):
+            eye = rotate_viewpoint(angle_rad)
+            eye = tuple(view_radius * (eye / np.linalg.norm(eye)))
+            center = (0, 0, 0)
+            camera.look_at(eye, center, up=(0, 1, 0))
+
+            renderer.render(scene, camera, rt_args, cuda_args, render_buffer)
+
+            # Convert to sRGB
+            image = np.power(np.clip(render_buffer, 0, 1), 1.0 / 2.2)
+            image = np.uint8(image * 255)
+            image = cv2.bilateralFilter(image, 3, 25, 25)
+
+            scene_data.add_orig(image)
+            angle_rad += 2 * math.pi / args.frames_per_rotation
 
         for _ in range(args.num_views_per_scene):
             eye = np.random.normal(size=3)
@@ -198,8 +223,7 @@ def main():
             yaw = gqn.math.yaw(eye, center)
             pitch = gqn.math.pitch(eye, center)
             scene_data.add(image, eye, math.cos(yaw), math.sin(yaw),
-                           math.cos(pitch), math.sin(pitch),
-                           scene)
+                           math.cos(pitch), math.sin(pitch))
 
         dataset.add(scene_data)
 
@@ -213,6 +237,7 @@ if __name__ == "__main__":
         "--num-observations-per-file", "-per-file", type=int, default=2000)
     parser.add_argument("--initial-file-number", "-f", type=int, default=1)
     parser.add_argument("--num-views-per-scene", "-k", type=int, default=15)
+    parser.add_argument("--frames-per-rotation", type=int, default=24)
     parser.add_argument("--image-size", type=int, default=64)
     parser.add_argument("--num-cubes", "-cubes", type=int, default=5)
     parser.add_argument("--num-colors", "-colors", type=int, default=12)

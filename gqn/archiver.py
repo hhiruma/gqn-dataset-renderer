@@ -4,18 +4,22 @@ import cupy as cp
 
 
 class SceneData:
-    def __init__(self, image_size, num_views_per_scene):
+    def __init__(self, image_size,
+        num_views_per_scene=5,
+        frames_per_rotation=24):
         self.images = np.zeros(
             (num_views_per_scene, ) + image_size + (3, ), dtype="uint8")
         self.viewpoints = np.zeros((num_views_per_scene, 7), dtype="float32")
-        self.rawScenes = np.zeros((num_views_per_scene, ), dtype="float32")
+        self.original_images = np.zeros(
+            (frames_per_rotation, ) + image_size + (3, ), dtype="uint8")
         self.view_index = 0
+        self.frame_index = 0
         self.num_views_per_scene = num_views_per_scene
+        self.frames_per_rotation = frames_per_rotation
         self.image_size = image_size
 
     def add(self, image, camera_position, cos_camera_yaw_rad,
-            sin_camera_yaw_rad, cos_camera_pitch_rad, sin_camera_pitch_rad,
-            rawScene):
+            sin_camera_yaw_rad, cos_camera_pitch_rad, sin_camera_pitch_rad):
         assert isinstance(image, np.ndarray)
         assert isinstance(camera_position, tuple)
         assert isinstance(cos_camera_yaw_rad, float)
@@ -39,8 +43,13 @@ class SceneData:
             cos_camera_pitch_rad,
             sin_camera_pitch_rad,
         )
-        self.rawScenes[self.view_index] = rawScene
         self.view_index += 1
+
+    def add_orig(self, image):
+         assert self.frame_index < self.frames_per_rotation
+
+         self.original_images[self.frame_index] = image
+         self.frame_index += 1
 
 
 class Archiver:
@@ -50,6 +59,7 @@ class Archiver:
                  num_observations_per_file=2000,
                  image_size=(64, 64),
                  num_views_per_scene=5,
+                 frames_per_rotation=24,
                  initial_file_number=1):
         assert directory is not None
         self.images = np.zeros(
@@ -59,14 +69,16 @@ class Archiver:
         self.viewpoints = np.zeros(
             (num_observations_per_file, num_views_per_scene, 7),
             dtype="float32")
-        self.rawScenes = np.zeros(
-            (num_observations_per_file, num_views_per_scene, ),
-            dtype="float32")
+        self.original_images = np.zeros(
+            (num_observations_per_file, frames_per_rotation) + image_size +
+            (3, ),
+            dtype="uint8")
         self.current_num_observations = 0
         self.current_pool_index = 0
         self.current_file_number = initial_file_number
         self.total_observations = total_observations
         self.num_observations_per_file = num_observations_per_file
+        self.frames_per_rotation = frames_per_rotation
         self.directory = directory
         self.image_size = image_size
         self.num_views_per_scene = num_views_per_scene
@@ -88,7 +100,7 @@ class Archiver:
         except:
             pass
         try:
-            os.mkdir(os.path.join(directory, "rawScenes"))
+            os.mkdir(os.path.join(directory, "original_images"))
         except:
             pass
 
@@ -97,7 +109,7 @@ class Archiver:
 
         self.images[self.current_pool_index] = scene.images
         self.viewpoints[self.current_pool_index] = scene.viewpoints
-        self.rawScenes[self.current_pool_index] = scene.rawScene
+        self.original_images[self.current_pool_index] = scene.original_images
 
         self.current_pool_index += 1
         if self.current_pool_index >= self.num_observations_per_file:
@@ -146,4 +158,6 @@ class Archiver:
             self.viewpoints)
 
         filename = "{:03d}.npy".format(self.current_file_number)
-        np.save(os.path.join(self.directory, "rawScenes", filename), self.rawScenes)
+        np.save(
+            os.path.join(self.directory, "original_images", filename),
+            self.original_images)
