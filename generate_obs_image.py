@@ -4,13 +4,14 @@ import math
 import random
 import time
 import cv2
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
 import gqn
-import c_gqn from '../chainer-gqn/gqn'
+import c_gqn
 import rtx
 
 def rotate_viewpoint(angle_rad):
@@ -178,14 +179,14 @@ def main():
     # enumerateがちゃんと動くか心配...
     original_data = c_gqn.data.Dataset(args.dataset_path)
     for i, subset in enumerate(original_data):
-        iterator = gqn.data.Iterator(subset, batch_size=1)
+        iterator = c_gqn.data.Iterator(subset, batch_size=1)
 
         for j, data_indices in enumerate(iterator):
             _images, viewpoints, _original_images = subset[data_indices]
 
             images = []
-            for viewpoint in viewpoints:
-                eye = viewpoint[0:3]
+            for viewpoint in viewpoints[0]:
+                eye = tuple(viewpoint[0:3])
                 scene = build_scene(color_array)
 
                 view_radius = 3
@@ -217,7 +218,7 @@ def main():
                 original_image = np.uint8(image * 255)
                 original_image = cv2.bilateralFilter(image, 3, 25, 25)
 
-                original_images.append(origina_image)
+                original_images.append(original_image)
                 angle_rad += 2 * math.pi / args.frames_per_rotation
 
             np.save(os.path.join(args.dataset_path, "test_data", str(i)+"_"+str(j)+".npy"), [images, original_images])
@@ -232,3 +233,4 @@ if __name__ == "__main__":
     parser.add_argument("--num-cubes", "-cubes", type=int, default=5)
     parser.add_argument("--num-colors", "-colors", type=int, default=12)
     args = parser.parse_args()
+    main()
