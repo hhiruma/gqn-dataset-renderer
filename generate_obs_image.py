@@ -185,12 +185,10 @@ def main():
             _images, viewpoints, _original_images = subset[data_indices]
 
             images = []
+            scene = build_scene(color_array)
             for viewpoint in viewpoints[0]:
                 eye = tuple(viewpoint[0:3])
-                scene = build_scene(color_array)
 
-                view_radius = 3
-                angle_rad = 0
                 center = (0, 0, 0)
                 camera.look_at(eye, center, up=(0, 1, 0))
 
@@ -204,6 +202,9 @@ def main():
                 images.append(image)
 
 
+
+            view_radius = 3
+            angle_rad = 0
             original_images = []
             for _ in range(args.frames_per_rotation):
                 eye = rotate_viewpoint(angle_rad)
@@ -215,8 +216,8 @@ def main():
 
                 # Convert to sRGB
                 original_image = np.power(np.clip(render_buffer, 0, 1), 1.0 / 2.2)
-                original_image = np.uint8(image * 255)
-                original_image = cv2.bilateralFilter(image, 3, 25, 25)
+                original_image = np.uint8(original_image * 255)
+                original_image = cv2.bilateralFilter(original_image, 3, 25, 25)
 
                 original_images.append(original_image)
                 angle_rad += 2 * math.pi / args.frames_per_rotation
